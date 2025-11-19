@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "89203510543",
+    "project_id": "iot-2025-evaluacion2-dacv",
+    "storage_bucket": "iot-2025-evaluacion2-dacv.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:89203510543:android:246845dbd91ccda906027a",
+        "android_client_info": {
+          "package_name": "com.example.agenda"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbRA_PIe7Wj2bZsKeRkDSSDSZAolzzJRo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
