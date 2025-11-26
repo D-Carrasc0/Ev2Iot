@@ -23,13 +23,18 @@ Ayudar a los estudiantes a **no olvidar** fechas de entrega y evaluaciones, ofre
   - Validación de formato de correo y longitud mínima de contraseña.
   - Si ya hay una sesión activa, se salta la pantalla de login.
 
+![image alt](https://github.com/D-Carrasc0/Ev2Iot/blob/36d85a724a2d1d6a2f02f612ca2d03b230d200d6/images/pantalla%20principal.PNG)
+
 - **Gestión de tareas**
+  ![image alt](https://github.com/D-Carrasc0/Ev2Iot/blob/36d85a724a2d1d6a2f02f612ca2d03b230d200d6/images/lista%20tareas.PNG)
   - Crear nuevas tareas con:
     - Descripción de la tarea.
     - Fecha de entrega (seleccionada con un `DatePicker`).
+  ![image alt](https://github.com/D-Carrasc0/Ev2Iot/blob/36d85a724a2d1d6a2f02f612ca2d03b230d200d6/images/fecha.PNG)
   - Listado de tareas en un `RecyclerView`, filtradas por usuario.
   - Marcar tareas como **completadas** mediante un `CheckBox`.
   - Editar el texto de una tarea mediante un diálogo.
+![image alt](https://github.com/D-Carrasc0/Ev2Iot/blob/36d85a724a2d1d6a2f02f612ca2d03b230d200d6/images/editar.PNG)
   - Eliminar tareas definitivamente.
 
 - **Indicador visual de urgencia**
