@@ -5,7 +5,6 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_color"
     tools:context=".LoginActivity">
 
     <EditText
@@ -18,8 +17,8 @@
         android:layout_marginBottom="430dp"
         android:hint="Correo"
         android:inputType="textEmailAddress"
-        android:textColor="#FFFFFF"
-        android:textColorHint="@color/white"
+        android:textColor="#000000"
+        android:textColorHint="@color/black"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
@@ -36,8 +35,8 @@
         android:layout_marginEnd="32dp"
         android:hint="Contraseña"
         android:inputType="textPassword"
-        android:textColor="#FDFDFD"
-        android:textColorHint="#FFFFFF"
+        android:textColor="#000000"
+        android:textColorHint="#000000"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/emailEditText" />
@@ -48,6 +47,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:text="Iniciar Sesion"
+        android:backgroundTint="#CC0000"
+        android:textColor="@android:color/white"
         app:layout_constraintEnd_toEndOf="@+id/passwordEditText"
         app:layout_constraintStart_toStartOf="@+id/passwordEditText"
         app:layout_constraintTop_toBottomOf="@+id/passwordEditText" />
@@ -58,6 +59,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:text="Registrarse"
+        android:backgroundTint="#CC0000"
+        android:textColor="@android:color/white"
         app:layout_constraintEnd_toEndOf="@+id/loginButton"
         app:layout_constraintStart_toStartOf="@+id/loginButton"
         app:layout_constraintTop_toBottomOf="@+id/loginButton" />
@@ -69,7 +72,7 @@
         android:layout_marginTop="91dp"
         android:layout_marginBottom="595dp"
         android:text="Agenda Estudiantil"
-        android:textColor="#FFFFFF"
+        android:textColor="#000000"
         android:textSize="34sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"

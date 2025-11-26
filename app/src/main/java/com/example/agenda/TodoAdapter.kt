@@ -9,6 +9,9 @@ import android.widget.Button
 import android.widget.CheckBox
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import androidx.cardview.widget.CardView
+import androidx.core.content.ContextCompat
+import java.util.concurrent.TimeUnit
 
 class TodoAdapter(
     private val onTodoChecked: (Todo, Boolean) -> Unit
@@ -17,17 +20,24 @@ class TodoAdapter(
     private val todos = mutableListOf<Todo>()
 
     private var onEditClickListener: ((Todo) -> Unit)? = null
+    private var onDeleteClickListener: ((Todo) -> Unit)? = null
 
-    // ViewHolder para cada item del RecyclerView
+    // ViewHolder que representa una fila de la lista
     class TodoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val cardView: CardView = itemView as CardView
         val textView: TextView = itemView.findViewById(R.id.textView)
         val checkBox: CheckBox = itemView.findViewById(R.id.checkBox)
         val deleteButton: Button = itemView.findViewById(R.id.deleteButton)
     }
 
-    // Método para establecer el listener de edición
+    // Listener para editar
     fun setOnEditClickListener(onEditClick: (Todo) -> Unit) {
         this.onEditClickListener = onEditClick
+    }
+
+    // Listener para eliminar
+    fun setOnDeleteClickListener(onDeleteClick: (Todo) -> Unit) {
+        this.onDeleteClickListener = onDeleteClick
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TodoViewHolder {
@@ -42,22 +52,63 @@ class TodoAdapter(
         holder.textView.text = currentTodo.text
         holder.checkBox.isChecked = currentTodo.completed
 
-        // Aplicar estilo de tachado si está completado
+        // Tachar el texto si la tarea está completada
         if (currentTodo.completed) {
-            holder.textView.paintFlags = holder.textView.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+            holder.textView.paintFlags =
+                holder.textView.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
         } else {
-            holder.textView.paintFlags = holder.textView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
+            holder.textView.paintFlags =
+                holder.textView.paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
         }
 
-        // Acción de edición al hacer clic en el texto de la tarea
+        val context = holder.itemView.context
+
+        // Color de la tarjeta:
+        // - si está completada, color neutro
+        // - si no está completada, se colorea según la fecha límite
+        if (currentTodo.completed) {
+            holder.cardView.setCardBackgroundColor(
+                ContextCompat.getColor(context, R.color.app_background)
+            )
+        } else {
+            val dueDate = currentTodo.dueAt
+
+            if (dueDate != null) {
+                val now = System.currentTimeMillis()
+                val diff = dueDate.time - now // milisegundos que faltan
+
+                val color = when {
+                    diff < 0 -> {
+                        // Vencida: rojo
+                        ContextCompat.getColor(context, android.R.color.holo_red_light)
+                    }
+                    diff < TimeUnit.HOURS.toMillis(24) -> {
+                        // Menos de 24 horas: naranja
+                        ContextCompat.getColor(context, android.R.color.holo_orange_light)
+                    }
+                    else -> {
+                        // Falta más tiempo: blanco
+                        ContextCompat.getColor(context, android.R.color.white)
+                    }
+                }
+                holder.cardView.setCardBackgroundColor(color)
+            } else {
+                // Sin fecha: se deja en blanco
+                holder.cardView.setCardBackgroundColor(
+                    ContextCompat.getColor(context, android.R.color.white)
+                )
+            }
+        }
+
+        // Editar al hacer clic en el texto
         holder.textView.setOnClickListener {
             onEditClickListener?.invoke(currentTodo)
         }
 
-        // Remover listeners previos para evitar duplicados
+        // Evitar que se dispare el listener viejo al reciclar vistas
         holder.checkBox.setOnCheckedChangeListener(null)
 
-        // Configurar listener para cambio de estado completado
+        // Marcar/desmarcar como completada
         holder.checkBox.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked != currentTodo.completed) {
                 Log.d("TodoAdapter", "Checkbox changed for ${currentTodo.text}: $isChecked")
@@ -65,15 +116,15 @@ class TodoAdapter(
             }
         }
 
-        // Configurar el listener para el botón de eliminar
+        // Eliminar tarea
         holder.deleteButton.setOnClickListener {
-            (holder.itemView.context as MainActivity).deleteTodo(currentTodo)
+            onDeleteClickListener?.invoke(currentTodo)
         }
     }
 
     override fun getItemCount(): Int = todos.size
 
-    // Actualizar la lista de todos con los nuevos datos
+    // Reemplaza toda la lista por una nueva
     fun updateTodos(newTodos: List<Todo>) {
         Log.d("TodoAdapter", "Updating todos. New count: ${newTodos.size}")
         todos.clear()
@@ -81,13 +132,13 @@ class TodoAdapter(
         notifyDataSetChanged()
     }
 
-    // Añadir un nuevo todo a la lista
+    // Agrega una tarea al principio de la lista
     fun addTodo(todo: Todo) {
         todos.add(0, todo)
         notifyItemInserted(0)
     }
 
-    // Actualizar un todo existente en la lista
+    // Actualiza una tarea existente
     fun updateTodo(updatedTodo: Todo) {
         val index = todos.indexOfFirst { it.id == updatedTodo.id }
         if (index != -1) {
@@ -96,7 +147,7 @@ class TodoAdapter(
         }
     }
 
-//     Eliminar un todo por su ID
+    // Elimina una tarea por id
     fun removeTodo(todoId: String) {
         val index = todos.indexOfFirst { it.id == todoId }
         if (index != -1) {

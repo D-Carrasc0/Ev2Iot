@@ -15,6 +15,10 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
+import android.app.DatePickerDialog
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -22,27 +26,32 @@ class MainActivity : AppCompatActivity() {
         private const val TAG = "MainActivity"
     }
 
-    // Firebase
+    // Referencias a Firebase
     private lateinit var auth: FirebaseAuth
     private lateinit var db: FirebaseFirestore
 
-    // Views
+    // Vistas de la interfaz
     private lateinit var recyclerView: RecyclerView
     private lateinit var todoEditText: EditText
+    private lateinit var dueDateEditText: EditText
     private lateinit var addButton: Button
     private lateinit var signOutButton: Button
 
-    // UI/State
+    // Fecha seleccionada en el DatePicker (puede ser null si no se eligió)
+    private var selectedDueDate: Calendar? = null
+
+    // Adaptador del RecyclerView y listener de Firestore
     private lateinit var todoAdapter: TodoAdapter
     private var todosListener: ListenerRegistration? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Inicializar Firebase Auth y Firestore
         auth = FirebaseAuth.getInstance()
         db = FirebaseFirestore.getInstance()
 
-        // Verificar autenticación ANTES de inflar el layout si vas a navegar
+        // Si no hay usuario autenticado se envía a la pantalla de login
         if (auth.currentUser == null) {
             navigateToLogin()
             return
@@ -57,33 +66,45 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "Usuario autenticado: ${auth.currentUser?.email}")
     }
 
+    // Obtiene las referencias a las vistas del layout
     private fun initViews() {
         recyclerView = findViewById(R.id.recyclerView)
         todoEditText = findViewById(R.id.todoEditText)
+        dueDateEditText = findViewById(R.id.dueDateEditText)
         addButton = findViewById(R.id.addButton)
         signOutButton = findViewById(R.id.signOutButton)
     }
 
+    // Configura el RecyclerView y el adaptador
     private fun setupRecyclerView() {
         recyclerView.layoutManager = LinearLayoutManager(this)
+
+        // Callback para cuando se marca/desmarca una tarea como completada
         todoAdapter = TodoAdapter { todo, isChecked ->
             updateTodoCompleted(todo, isChecked)
         }
 
-        // Configurar el listener para la edición de la tarea
+        // Editar texto de la tarea al pulsar sobre el texto
         todoAdapter.setOnEditClickListener { todo ->
             showEditDialog(todo)
         }
 
+        // Eliminar tarea al pulsar el botón de eliminar
+        todoAdapter.setOnDeleteClickListener { todo ->
+            deleteTodo(todo)
+        }
+
         recyclerView.adapter = todoAdapter
-        Log.d(TAG, "RecyclerView configurado")
     }
 
+    // Configura los listeners de los botones y del campo de fecha
     private fun setupClickListeners() {
         addButton.setOnClickListener { addNewTodo() }
         signOutButton.setOnClickListener { signOut() }
+        dueDateEditText.setOnClickListener { showDatePicker() }
     }
 
+    // Crea una nueva tarea y la guarda en Firestore
     private fun addNewTodo() {
         val todoText = todoEditText.text.toString().trim()
         if (todoText.isEmpty()) {
@@ -92,11 +113,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         val userId = auth.currentUser?.uid ?: return
+        val dueDate = selectedDueDate?.time
 
+        // Datos que se enviarán a Firestore
         val todo = hashMapOf(
             "text" to todoText,
             "completed" to false,
             "userId" to userId,
+            "dueAt" to dueDate,
             "createdAt" to FieldValue.serverTimestamp()
         )
 
@@ -106,23 +130,36 @@ class MainActivity : AppCompatActivity() {
             .add(todo)
             .addOnSuccessListener { documentReference ->
                 Log.d(TAG, "Todo agregado exitosamente con ID: ${documentReference.id}")
+
+                // Limpiar campos y estado local
                 todoEditText.text.clear()
+                dueDateEditText.text.clear()
+                selectedDueDate = null
+
                 Toast.makeText(this, "Tarea agregada", Toast.LENGTH_SHORT).show()
+
+                // Crear el objeto local para mostrarlo inmediatamente en la lista
                 val localTodo = Todo(
                     id = documentReference.id,
                     text = todoText,
                     completed = false,
                     userId = userId,
+                    dueAt = dueDate,
                     createdAt = null
                 )
                 todoAdapter.addTodo(localTodo)
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Error al agregar todo", e)
-                Toast.makeText(this, "Error al agregar tarea: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Error al agregar tarea: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
     }
 
+    // Actualiza el estado "completed" de una tarea en Firestore
     private fun updateTodoCompleted(todo: Todo, isCompleted: Boolean) {
         if (todo.id.isEmpty()) {
             Log.e(TAG, "Error: ID del todo está vacío")
@@ -139,11 +176,15 @@ class MainActivity : AppCompatActivity() {
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Error al actualizar todo", e)
-                Toast.makeText(this, "Error al actualizar: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Error al actualizar: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
     }
 
-    // Cambia private por public o elimina 'private' para que sea accesible
+    // Elimina una tarea de Firestore y del adaptador
     fun deleteTodo(todo: Todo) {
         if (todo.id.isEmpty()) {
             Log.e(TAG, "Error: ID del todo está vacío")
@@ -157,21 +198,50 @@ class MainActivity : AppCompatActivity() {
             .delete()
             .addOnSuccessListener {
                 Log.d(TAG, "Todo eliminado exitosamente")
-                todoAdapter.removeTodo(todo.id)  // Eliminar también de la lista local del RecyclerView
+
+                // Eliminar también de la lista local del RecyclerView
+                todoAdapter.removeTodo(todo.id)
                 Toast.makeText(this, "Tarea eliminada", Toast.LENGTH_SHORT).show()
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Error al eliminar todo", e)
-                Toast.makeText(this, "Error al eliminar: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Error al eliminar: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
     }
 
+    // Muestra un DatePicker para seleccionar la fecha de entrega
+    private fun showDatePicker() {
+        val calendar = selectedDueDate ?: Calendar.getInstance()
 
+        val datePicker = DatePickerDialog(
+            this,
+            { _, year, month, dayOfMonth ->
+                val cal = Calendar.getInstance()
+                // Se fija la hora al final del día (23:59)
+                cal.set(year, month, dayOfMonth, 23, 59, 0)
+                selectedDueDate = cal
+
+                val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                dueDateEditText.setText(format.format(cal.time))
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        )
+
+        datePicker.show()
+    }
+
+    // Escucha los cambios en la colección de tareas del usuario y actualiza la lista
     private fun loadTodos() {
         val userId = auth.currentUser?.uid ?: return
         Log.d(TAG, "Cargando todos para usuario: $userId")
 
-        // Remover listener anterior si existe
+        // Remover el listener anterior si existía, para evitar duplicados
         todosListener?.remove()
 
         todosListener = db.collection("todos")
@@ -189,6 +259,7 @@ class MainActivity : AppCompatActivity() {
                     return@addSnapshotListener
                 }
 
+                // Convertir los documentos de Firestore a objetos Todo
                 val todoList = snapshots.documents.mapNotNull { doc ->
                     try {
                         doc.toObject(Todo::class.java)?.copy(id = doc.id)
@@ -202,14 +273,20 @@ class MainActivity : AppCompatActivity() {
                 todoAdapter.updateTodos(todoList)
 
                 if (todoList.isEmpty()) {
-                    Toast.makeText(this, "No hay tareas. ¡Agrega una!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this,
+                        "No hay tareas. ¡Agrega una!",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
     }
 
+    // Diálogo para editar el texto de una tarea existente
     private fun showEditDialog(todo: Todo) {
         val editText = EditText(this)
         editText.setText(todo.text)
+
         val dialog = AlertDialog.Builder(this)
             .setTitle("Editar tarea")
             .setView(editText)
@@ -218,7 +295,11 @@ class MainActivity : AppCompatActivity() {
                 if (newText.isNotEmpty()) {
                     updateTodoText(todo, newText)
                 } else {
-                    Toast.makeText(this, "El texto no puede estar vacío", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this,
+                        "El texto no puede estar vacío",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
             .setNegativeButton("Cancelar", null)
@@ -227,6 +308,7 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    // Actualiza el texto de una tarea en Firestore y en el adaptador
     private fun updateTodoText(todo: Todo, newText: String) {
         db.collection("todos")
             .document(todo.id)
@@ -234,21 +316,25 @@ class MainActivity : AppCompatActivity() {
             .addOnSuccessListener {
                 Log.d(TAG, "Tarea actualizada exitosamente")
 
-                // Crear un nuevo objeto Todo con el nuevo texto
+                // Crear un nuevo objeto Todo con el texto actualizado
                 val updatedTodo = todo.copy(text = newText)
 
-                // Actualizar el adaptador con el nuevo objeto Todo
+                // Notificar al adaptador para que refresque el ítem
                 todoAdapter.updateTodo(updatedTodo)
 
                 Toast.makeText(this, "Tarea actualizada", Toast.LENGTH_SHORT).show()
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Error al actualizar tarea", e)
-                Toast.makeText(this, "Error al actualizar tarea: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Error al actualizar tarea: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
     }
 
-
+    // Cierra la sesión del usuario y limpia el listener
     private fun signOut() {
         Log.d(TAG, "Cerrando sesión")
         todosListener?.remove()
@@ -256,11 +342,13 @@ class MainActivity : AppCompatActivity() {
         navigateToLogin()
     }
 
+    // Navega a la pantalla de login y cierra esta actividad
     private fun navigateToLogin() {
         startActivity(Intent(this, LoginActivity::class.java))
         finish()
     }
 
+    // Cuando la actividad se destruye, se elimina el listener de Firestore
     override fun onDestroy() {
         super.onDestroy()
         todosListener?.remove()

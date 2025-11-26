@@ -8,5 +8,6 @@ data class Todo(
     val text: String = "",
     val completed: Boolean = false,
     val userId: String = "",
+    val dueAt: Date? = null,
     @ServerTimestamp val createdAt: Date? = null
 )
